@@ -2,6 +2,8 @@
 
 #include<iostream>
 
+using namespace NDormon;
+
 CWindowManager::CWindowManager(
 		unsigned Width,
 		unsigned Height,
