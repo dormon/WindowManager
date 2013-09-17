@@ -26,6 +26,7 @@ namespace NDormon{
 			bool Running;//if true application is running
 			void(*Idle)();//idle call back function
 			void(*Mouse)();//mouse call back function
+			bool UseAntTweakBar;//use anttweakbar flag
 			Uint32 ElapsedTime;//elapsed time
 			Uint32 LastMouseTime;//last mouse time
 			Uint32 LastIdleTime;//last idle time
@@ -35,7 +36,7 @@ namespace NDormon{
 			std::map<SDLKey,int>MapKeyOffOn;
 		public:
 			CWindowManager(unsigned Width,unsigned Height,bool FullScreen,
-					void(*Idle)(),void(*Mouse)());
+					void(*Idle)(),void(*Mouse)(),bool UseAntTweakBar);
 			void MainLoop();
 			void StopMainLoop();
 			void Swap();
