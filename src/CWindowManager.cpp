@@ -21,13 +21,36 @@ namespace NDormon{
 		this->IsFullScreen=FullScreen;//set fullscreen flag
 		this->UseAntTweakBar=UseAntTweakBar;
 
-		if(this->UseAntTweakBar){
-			TwInit(TW_OPENGL,NULL);
-			TwWindowSize(this->WindowSize[0],this->WindowSize[1]);
-		}
 
 		SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER);//initialise video
+#ifdef USE_SDL2
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+				SDL_GL_CONTEXT_PROFILE_CORE);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,SDL_GL_CONTEXT_DEBUG_FLAG);
+#endif//USE_SDL2
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
+
+#ifdef USE_SDL2
+		if(this->IsFullScreen)
+			this->MainWindow=SDL_CreateWindow(
+					"SDL2",
+					SDL_WINDOWPOS_CENTERED,
+					SDL_WINDOWPOS_CENTERED,
+					this->WindowSize[0],
+					this->WindowSize[1],
+					SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_FULLSCREEN);
+		else
+			this->MainWindow=SDL_CreateWindow(
+					"SDL2",
+					SDL_WINDOWPOS_CENTERED,
+					SDL_WINDOWPOS_CENTERED,
+					this->WindowSize[0],
+					this->WindowSize[1],
+					SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
+		this->MainContext=SDL_GL_CreateContext(this->MainWindow);
+#else
 		if(this->IsFullScreen)//is fullscreen?
 			SDL_SetVideoMode(//set video
 					this->WindowSize[0],//width
@@ -45,10 +68,16 @@ namespace NDormon{
 					SDL_HWSURFACE|//hardware surface
 					SDL_DOUBLEBUF|//double buffering
 					SDL_OPENGL);//OpenGL
+#endif//USE_SDL2
 		for(int i=0;i<256;++i){//loop over keys
 			this->KeyDown[i]=0;//key is not down
 			this->KeyOffOn[i]=0;//key is off
 		}
+		if(this->UseAntTweakBar){
+			TwInit(TW_OPENGL_CORE,NULL);
+			TwWindowSize(this->WindowSize[0],this->WindowSize[1]);
+		}
+
 		this->MouseLeftDown=0;//left mouse button is not down
 		this->MouseLeftOffOn=0;//left mouse button is off
 		this->MouseRightDown=0;//right mouse button is not down
@@ -61,6 +90,10 @@ namespace NDormon{
 		}
 		this->WarpMouse=false;
 		this->Running=true;
+	}
+
+	SDL_GLContext CWindowManager::GetContext(){
+		return this->MainContext;
 	}
 
 	void CWindowManager::MainLoop(){
@@ -76,6 +109,28 @@ namespace NDormon{
 						case SDL_QUIT://quit main loop
 							this->Running=false;//stop running
 							break;//break quit case
+#ifdef USE_SDL2
+						case SDL_KEYDOWN://key down
+							if(!this->MapKeyDown.count(E.key.keysym.sym))
+								this->MapKeyDown.insert(std::pair<SDL_Keycode,int>(E.key.keysym.sym,0));
+							if(!this->MapKeyOffOn.count(E.key.keysym.sym))
+								this->MapKeyOffOn.insert(std::pair<SDL_Keycode,int>(E.key.keysym.sym,0));
+							this->MapKeyDown[E.key.keysym.sym]=1;
+							this->MapKeyOffOn[E.key.keysym.sym]^=1;
+							if(E.key.keysym.sym==SDLK_1)exit(0);
+
+							this->KeyDown[E.key.keysym.sym%256]=1;//key is down
+							this->KeyOffOn[E.key.keysym.sym%256]^=1;//switch key state
+							break;//break key down case
+						case SDL_KEYUP://key up
+							if(!this->MapKeyDown.count(E.key.keysym.sym))
+								this->MapKeyDown.insert(std::pair<SDL_Keycode,int>(E.key.keysym.sym,0));
+							if(!this->MapKeyOffOn.count(E.key.keysym.sym))
+								this->MapKeyOffOn.insert(std::pair<SDL_Keycode,int>(E.key.keysym.sym,0));
+							this->MapKeyDown[E.key.keysym.sym]=0;
+							this->KeyDown[E.key.keysym.sym%256]=0;//key is not down
+							break;//break key up case
+#else
 						case SDL_KEYDOWN://key down
 							if(!this->MapKeyDown.count(E.key.keysym.sym))
 								this->MapKeyDown.insert(std::pair<SDLKey,int>(E.key.keysym.sym,0));
@@ -96,6 +151,7 @@ namespace NDormon{
 							this->MapKeyDown[E.key.keysym.sym]=0;
 							this->KeyDown[E.key.keysym.sym%256]=0;//key is not down
 							break;//break key up case
+#endif
 						case SDL_MOUSEMOTION://mouse motion
 							this->CurrentMouseTime=SDL_GetTicks();//current mouse time
 							this->MousePosition[0]=E.motion.x;//x position of mouse
@@ -109,7 +165,11 @@ namespace NDormon{
 							if(	this->MousePosition[0]-this->WindowSize[0]/2!=0||//change x
 									this->MousePosition[1]-this->WindowSize[1]/2!=0){//change y
 								if(this->WarpMouse)//can we warp mouse position
+#ifdef USE_SDL2
+									SDL_WarpMouseInWindow(this->MainWindow,this->WindowSize[0]/2,this->WindowSize[1]/2);//warp
+#else
 									SDL_WarpMouse(this->WindowSize[0]/2,this->WindowSize[1]/2);//warp
+#endif
 							}
 							this->MouseLastPosition[0]=this->MousePosition[0];//copy x position
 							this->MouseLastPosition[1]=this->MousePosition[1];//copy y position
@@ -160,7 +220,11 @@ namespace NDormon{
 	void CWindowManager::Swap(){
 		if(this->UseAntTweakBar)
 			TwDraw();//draw tweak bar
+#ifdef USE_SDL2
+		SDL_GL_SwapWindow(this->MainWindow);
+#else
 		SDL_GL_SwapBuffers();
+#endif//USE_SDL2
 	}
 
 	void CWindowManager::SetIdle(void(*Idle)()){
@@ -204,15 +268,27 @@ namespace NDormon{
 	}
 
 	int CWindowManager::IsKeyDown(int Key){
+#ifdef USE_SDL2
+		if(!this->MapKeyDown.count((SDL_Keycode)Key))
+			this->MapKeyDown.insert(std::pair<SDL_Keycode,int>((SDL_Keycode)Key,0));
+		return this->MapKeyDown[(SDL_Keycode)Key];
+#else
 		if(!this->MapKeyDown.count((SDLKey)Key))
 			this->MapKeyDown.insert(std::pair<SDLKey,int>((SDLKey)Key,0));
 		return this->MapKeyDown[(SDLKey)Key];
+#endif//USE_SDL2
 	}
 
 	int CWindowManager::IsKeyOn(int Key){
+#ifdef USE_SDL2
+		if(!this->MapKeyOffOn.count((SDL_Keycode)Key))
+			this->MapKeyOffOn.insert(std::pair<SDL_Keycode,int>((SDL_Keycode)Key,0));
+		return this->MapKeyOffOn[(SDL_Keycode)Key];
+#else
 		if(!this->MapKeyOffOn.count((SDLKey)Key))
 			this->MapKeyOffOn.insert(std::pair<SDLKey,int>((SDLKey)Key,0));
 		return this->MapKeyOffOn[(SDLKey)Key];
+#endif//USE_SDL2
 	}
 
 	int CWindowManager::IsLeftDown(){

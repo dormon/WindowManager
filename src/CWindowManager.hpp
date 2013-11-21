@@ -1,8 +1,16 @@
 #ifndef _CWINDOWMANAGER_HPP_
 #define _CWINDOWMANAGER_HPP_
 
+
 #include<map>
-#include<SDL/SDL.h>
+
+#define USE_SDL2
+
+#ifdef USE_SDL2
+	#include<SDL2/SDL.h>
+#else
+	#include<SDL/SDL.h>
+#endif//USE_SDL2
 
 namespace NDormon{
 
@@ -32,11 +40,20 @@ namespace NDormon{
 			Uint32 LastIdleTime;//last idle time
 			Uint32 CurrentMouseTime;//current mouse time
 			Uint32 CurrentIdleTime;//current idle time
+#ifdef USE_SDL2
+			std::map<SDL_Keycode,int>MapKeyDown;
+			std::map<SDL_Keycode,int>MapKeyOffOn;
+			SDL_Window*MainWindow;
+			SDL_GLContext MainContext;
+#else
 			std::map<SDLKey,int>MapKeyDown;
 			std::map<SDLKey,int>MapKeyOffOn;
+#endif//USE_SDL2
+
 		public:
 			CWindowManager(unsigned Width,unsigned Height,bool FullScreen,
 					void(*Idle)(),void(*Mouse)(),bool UseAntTweakBar);
+			SDL_GLContext GetContext();
 			void MainLoop();
 			void StopMainLoop();
 			void Swap();
@@ -60,9 +77,16 @@ namespace NDormon{
 			int IsMiddleOn();
 			void SetKeyOn(int k){
 				this->KeyOffOn[k]=1;
+#ifdef USE_SDL2
+				if(!this->MapKeyOffOn.count((SDL_Keycode)k))
+					this->MapKeyOffOn.insert(std::pair<SDL_Keycode,int>((SDL_Keycode)k,0));
+				this->MapKeyOffOn[(SDL_Keycode)k]=1;
+#else
 				if(!this->MapKeyOffOn.count((SDLKey)k))
 					this->MapKeyOffOn.insert(std::pair<SDLKey,int>((SDLKey)k,0));
 				this->MapKeyOffOn[(SDLKey)k]=1;
+#endif//USE_SDL2
+
 			}
 
 	};
