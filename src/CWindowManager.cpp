@@ -95,6 +95,16 @@ namespace NDormon{
 	SDL_GLContext CWindowManager::GetContext(){
 		return this->MainContext;
 	}
+	SDL_Window*CWindowManager::GetWindow(){
+		return this->MainWindow;
+	}
+	void CWindowManager::MessageBox(
+			std::string Message,
+			std::string Title,
+			Uint32 flags){
+		SDL_ShowSimpleMessageBox(flags,Title.c_str(),Message.c_str(),this->MainWindow);
+	}
+
 
 	void CWindowManager::MainLoop(){
 		SDL_Event E;//event

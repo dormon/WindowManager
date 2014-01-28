@@ -1,7 +1,7 @@
 #ifndef _CWINDOWMANAGER_HPP_
 #define _CWINDOWMANAGER_HPP_
 
-
+#include<iostream>
 #include<map>
 
 #define USE_SDL2
@@ -54,6 +54,10 @@ namespace NDormon{
 			CWindowManager(unsigned Width,unsigned Height,bool FullScreen,
 					void(*Idle)(),void(*Mouse)(),bool UseAntTweakBar);
 			SDL_GLContext GetContext();
+			SDL_Window*GetWindow();
+			void MessageBox(std::string Message,std::string Title="message box",
+					Uint32 flags=SDL_MESSAGEBOX_INFORMATION);
+			void ChangeTitle(const char*Title);
 			void MainLoop();
 			void StopMainLoop();
 			void Swap();
