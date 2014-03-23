@@ -4,7 +4,108 @@
 #include<AntTweakBar.h>
 
 namespace NDormon{
+  void CWindowManager::Constructor(
+      unsigned Width,
+      unsigned Height,
+      bool FullScreen,
+      void(*Idle)(),
+      void(*Mouse)(),
+      bool UseAntTweakBar,
+      unsigned Version,
+      SDL_GLprofile Profile,
+      SDL_GLcontextFlag ContextFlag){
+		this->MapKeyDown.clear();
+		this->MapKeyOffOn.clear();
+		this->Idle=Idle;//set idle function
+		this->Mouse=Mouse;//set mouse function
+		this->WindowSize[0]=Width;//width of window
+		this->WindowSize[1]=Height;//height of window
+		this->IsFullScreen=FullScreen;//set fullscreen flag
+		this->UseAntTweakBar=UseAntTweakBar;
 
+
+		SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER);//initialise video
+#ifdef USE_SDL2
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,Version/100);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,(Version%100)/10);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,Profile);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,ContextFlag);
+#endif//USE_SDL2
+		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
+#ifdef USE_SDL2
+		if(this->IsFullScreen)
+			this->MainWindow=SDL_CreateWindow(
+					"SDL2",
+					SDL_WINDOWPOS_CENTERED,
+					SDL_WINDOWPOS_CENTERED,
+					this->WindowSize[0],
+					this->WindowSize[1],
+					SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_FULLSCREEN);
+		else
+			this->MainWindow=SDL_CreateWindow(
+					"SDL2",
+					SDL_WINDOWPOS_CENTERED,
+					SDL_WINDOWPOS_CENTERED,
+					this->WindowSize[0],
+					this->WindowSize[1],
+					SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
+		this->MainContext=SDL_GL_CreateContext(this->MainWindow);
+#else
+		if(this->IsFullScreen)//is fullscreen?
+			SDL_SetVideoMode(//set video
+					this->WindowSize[0],//width
+					this->WindowSize[1],//height
+					24,//bit depth
+					SDL_HWSURFACE|//hardware surface
+					SDL_DOUBLEBUF|//double buffering
+					SDL_OPENGL|//OpenGL
+					SDL_FULLSCREEN);//fullscreen
+		else
+			SDL_SetVideoMode(//set video
+					this->WindowSize[0],//width
+					this->WindowSize[1],//height
+					24,//bit depth
+					SDL_HWSURFACE|//hardware surface
+					SDL_DOUBLEBUF|//double buffering
+					SDL_OPENGL);//OpenGL
+#endif//USE_SDL2
+
+		for(int i=0;i<256;++i){//loop over keys
+			this->KeyDown[i]=0;//key is not down
+			this->KeyOffOn[i]=0;//key is off
+		}
+		if(this->UseAntTweakBar){
+			TwInit(TW_OPENGL_CORE,NULL);
+			TwWindowSize(this->WindowSize[0],this->WindowSize[1]);
+		}
+
+		this->MouseLeftDown=0;//left mouse button is not down
+		this->MouseLeftOffOn=0;//left mouse button is off
+		this->MouseRightDown=0;//right mouse button is not down
+		this->MouseRightOffOn=0;//right mouse button is off
+		this->MouseMiddleDown=0;//middle mouse button is not down
+		this->MouseMiddleOffOn=0;//middle mouse button is off
+		for(int i=0;i<2;++i){
+			this->MousePosition[i]=this->WindowSize[i]/2;
+			this->MouseDeltaPosition[i]=0;
+		}
+		this->WarpMouse=false;
+		this->Running=true;
+  }
+
+  CWindowManager::CWindowManager(
+      unsigned Width,
+      unsigned Height,
+      bool FullScreen,
+      void(*Idle)(),
+      void(*Mouse)(),
+      bool UseAntTweakBar,
+      unsigned Version,
+      SDL_GLprofile Profile,
+      SDL_GLcontextFlag ContextFlag){
+    this->Constructor(Width,Height,FullScreen,Idle,Mouse,UseAntTweakBar,Version,Profile,ContextFlag);
+  }
+  /*
 	CWindowManager::CWindowManager(
 			unsigned Width,
 			unsigned Height,
@@ -91,6 +192,12 @@ namespace NDormon{
 		this->WarpMouse=false;
 		this->Running=true;
 	}
+*/
+	CWindowManager::~CWindowManager(){
+		if(this->UseAntTweakBar){
+			TwTerminate();
+		}
+	}
 
 	SDL_GLContext CWindowManager::GetContext(){
 		return this->MainContext;
@@ -128,6 +235,7 @@ namespace NDormon{
 							this->MapKeyDown[E.key.keysym.sym]=1;
 							this->MapKeyOffOn[E.key.keysym.sym]^=1;
 							if(E.key.keysym.sym==SDLK_1)exit(0);
+              if(E.key.keysym.sym>=NDormon_CWindowManager_KEYS)break;
 
 							this->KeyDown[E.key.keysym.sym%256]=1;//key is down
 							this->KeyOffOn[E.key.keysym.sym%256]^=1;//switch key state
